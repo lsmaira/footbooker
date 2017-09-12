@@ -2,9 +2,10 @@
   "name": "footbooker",
   "version": "1.0.0",
   "description": "Football booker script",
-  "main": "footbooker.js",
+  "main": "src/footbooker.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/footbooker.js",
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
@@ -24,5 +25,8 @@
   "dependencies": {
     "async": "^2.5.0",
     "https": "^1.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^3.5.3"
   }
 }

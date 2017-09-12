@@ -4,7 +4,7 @@ const fs = require('fs');
 
 'use-strict';
 
-const settings = JSON.parse(fs.readFileSync('foot_booker_settings.json'));
+const settings = JSON.parse(fs.readFileSync('settings/foot_booker_settings.json'));
 const timeout = 10000;
 const footballId = '50ba1b7a-67f4-4c8d-a575-7dc8b5a43a30';
 

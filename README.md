@@ -2,10 +2,10 @@
 Script to book football
 
 ## To get started:
-```
-npm install
-```
+`npm install`
+
+## To test:
+`npm test`
 
 ## To use:
-- Modify foot_booker_settings.json
-- Run script
+First modify settings files and then: `npm start`
