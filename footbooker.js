@@ -29,12 +29,12 @@ function getCookies() {
 
 /**
  * Get and set the initial cookies.
- * 
+ *
  * "__cfduid" and "ASP.NET_SessionId" are set.
  */
 function getInitialCookies(callback) {
     let req = https.request({
-        hostname: 'hsp.kingscross.co.uk',
+        hostname: settings.hostname,
         path: '/Accounts/Login.aspx',
         method: 'GET'
     }, (res) => {
@@ -51,12 +51,12 @@ function getInitialCookies(callback) {
 
 /**
  * Log in and set the cookies.
- * 
+ *
  * ".viciniteeFoms" is set.
  */
 function login(callback) {
     let req = https.request({
-        hostname: 'hsp.kingscross.co.uk',
+        hostname: settings.hostname,
         path: '/Services/Commercial/api/security/validatelogin.json',
         method: 'POST',
         headers: {
@@ -84,12 +84,12 @@ function login(callback) {
 
 /**
  * Get football id.
- * 
+ *
  * It is immutable.
  */
 function getFootballId(callback) {
     let req = https.request({
-        hostname: 'hsp.kingscross.co.uk',
+        hostname: settings.hostname,
         path: '/Services/Commercial/api/muga/listactivitytypes.json',
         method: 'POST',
         headers: {
@@ -127,13 +127,13 @@ function getFootballId(callback) {
 
 /**
  * Returns a list of available bookings in the format:
- * 
+ *
  * [ { Guid: 'id', Name: 'HSP session 1', StartDateTime: '2017-09-12T06:00:00.0000000Z', EndDateTime: '2017-09-12T06:45:00.0000000Z', Availability: -50 }
  * Where negative availability means not available.
  */
 function listAvailableBookings(dateString, callback) {
     let req = https.request({
-        hostname: 'hsp.kingscross.co.uk',
+        hostname: settings.hostname,
         path: '/Services/Commercial/api/muga/ListAvailableSessions.json',
         method: 'POST',
         headers: {
@@ -161,7 +161,7 @@ function listAvailableBookings(dateString, callback) {
     });
 
     req.write(JSON.stringify({BookingDate: dateString, ActivityTypeGuid: footballId}));
-    
+
     req.end();
 }
 
@@ -180,7 +180,7 @@ function isTimeAvailable(dateString, timeString, callback) {
                     guid = item.Guid;
                 }
             });
-    
+
             return callback(null, dateString, guid);
         }
     ], callback);
@@ -191,7 +191,7 @@ function isTimeAvailable(dateString, timeString, callback) {
  */
 function sendBookRequest(dateString, sessionGuid, callback) {
     let req = https.request({
-        hostname: 'hsp.kingscross.co.uk',
+        hostname: settings.hostname,
         path: '/Services/Commercial/api/muga/AddBooking.json',
         method: 'POST',
         headers: {
@@ -212,7 +212,7 @@ function sendBookRequest(dateString, sessionGuid, callback) {
         SessionGuid: sessionGuid,
         Date: dateString
     }));
-    
+
     req.end();
 }
 
@@ -233,7 +233,7 @@ function tryToBook(dateString, timeString, callback) {
  */
 // function queryBookInformation(guid, callback) {
 //     let req = https.request({
-//         hostname: 'hsp.kingscross.co.uk',
+//         hostname: settings.hostname,
 //         path: '/Services/Commercial/api/muga/GetBookingInformation.json',
 //         method: 'POST',
 //         headers: {
@@ -262,7 +262,7 @@ function tryToBook(dateString, timeString, callback) {
 //     });
 
 //     req.write(JSON.stringify({Guid: guid}));
-    
+
 //     req.end();
 // }
 
