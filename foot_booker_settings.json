@@ -1,0 +1,10 @@
+{
+    "credentials": {
+        "login": "bla@blabla.com",
+        "password": "bla"
+    },
+    "bookingPreference": [{
+        "date": "2017-09-16T00:00:00.000Z",
+        "time": "2017-09-16T14:00:00.0000000Z"
+    }]
+}
