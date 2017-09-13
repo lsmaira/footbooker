@@ -7,28 +7,132 @@ const connection = require('./connection.js')
 
 const settings = JSON.parse(fs.readFileSync('settings/foot_booker_settings.json'));
 
+const timeout = 20000;
 
-// TODO: functions like the ones below to really book based on connection
-// function bla() {
-//     async.waterfall([
-//         connection.getInitialCookies,
-//         connection.login,
-//         (callback) => {
-//             // connection.listAvailableBookings('2017-09-18T00:00:00.000Z', callback);
-//             // connection.sendBookRequest('2017-09-18T00:00:00.000Z', '069eb766-bc03-4664-ad7f-cf1b18a65f56', callback); // not
-//             // connection.sendBookRequest('2017-09-18T00:00:00.000Z', 'caaf36c9-c092-4c4f-995b-e247e22ed8e2', callback); // av
-//             connection.queryBookInformation('e852a824-d429-4748-ac7d-be29f48470f8', callback);
-//         }
-//     ], (err, result) => {
-//         if (err) {
-//             console.error(err);
-//         } else {
-//             console.log(result);
-//         }
-//     });
-// }
+/**
+ * Convert to UTC date and time string is ISO format
+ * 
+ * <p>Times to book must be in UTC, even though the shown values are in local time.
+ * 
+ * @param {*} localDateAndTime string or other format of date and time
+ * 
+ * Return the converted string.
+ */
+function localToUTC(localDateAndTime) {
+    let date = new Date(localDateAndTime);
+    return new Date(date.getTime() + (date.getTimezoneOffset() * 60000)).toISOString();
+}
 
-// bla();
-// setTimeout(() => {
-//     console.error('Timed out');
-// }, 10000);
+/**
+ * Convert to date in ISO format
+ * 
+ * <p>Useful for quering availability for a given date and time.
+ * 
+ * @param {*} localDateAndTime string or other format of date and time
+ * 
+ * Return the converted string.
+ */
+function dateAndTimeToDate(localDateAndTime) {
+    let date = new Date(localDateAndTime);
+    // Generates a date based in UTC, but when reading it is local
+    date = new Date(date.toDateString());
+    // Transforms in local
+    return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString();
+}
+
+/**
+ * Try to book for a specific date and time
+ * 
+ * <p>It is required to be loged in.
+ * 
+ * <p>If book is not available, an error will be thrown.
+ * 
+ * @param {*} localDateAndTime local date and time string in ISO format
+ */
+function tryToBook(localDateAndTime, callback) {
+    let dateString = dateAndTimeToDate(localDateAndTime);
+    let dateAndTimeUTC = localToUTC(localDateAndTime);
+    connection.listAvailableBookings(dateString, (err, availableSessions) => {
+        if (err) {
+            return callback(err);
+        }
+
+        let guid;
+        availableSessions.forEach((availableSession) => {
+            if (new Date(availableSession.startTime).toISOString() === new Date(dateAndTimeUTC).toISOString()) {
+                guid = availableSession.guid;
+            }
+        });
+        
+        if (guid) {
+            // Session is available. Send book request.
+            return connection.sendBookRequest(dateString, guid, callback);
+        }
+
+        // Session is not available
+        return callback(new Error('Required session ' + localDateAndTime + 'is not available'));
+    });
+}
+
+/**
+ * Try to book in order for the dates and time in config until sucess or tried all
+ * 
+ * <p>It is required to be loged in.
+ * 
+ * Return the guid if succeeded.
+ */
+function tryToBookInOrder(callback) {
+    let books = settings.bookingPreference;
+
+    let bookedGuid;
+    return async.eachSeries(books, (localDateAndTime, callback) => {
+        if (bookedGuid) {
+            // Already booked
+            return callback();
+        }
+
+        return tryToBook(localDateAndTime, (err, guid) => {
+            if (err) {
+                // If not succeeded, try next
+                return callback();
+            }
+
+            bookedGuid = guid;
+            return callback();
+        });
+    }, (err) => {
+        if (err) {
+            // Should never happen here since errors in partial functions are ignored
+            return callback(err);
+        }
+
+        if (!bookedGuid) {
+            // Passed by all tries but none was successful
+            return callback(new Error('None of the bookings was successful'));
+        }
+
+        return callback(null, bookedGuid);
+    });
+}
+
+function perform() {
+    async.waterfall([
+        connection.getInitialCookies,
+        connection.login,
+        tryToBookInOrder,
+        connection.queryBookInformation
+    ], (err, result) => {
+        if (err) {
+            console.error(err);
+        } else {
+            console.log(result);
+        }
+    });
+}
+
+let timer = setTimeout(() => {
+    console.error('Timed out');
+}, timeout);
+
+perform();
+clearTimeout(timer);
