@@ -4,7 +4,7 @@
   "description": "Football booker script",
   "main": "src/footbooker.js",
   "scripts": {
-    "setup": "scripts/configure.sh",
+    "setup": "scripts/setup.sh",
     "start": "node src/footbooker.js",
     "test": "mocha"
   },
