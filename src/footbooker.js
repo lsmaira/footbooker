@@ -7,7 +7,7 @@ const connection = require('./connection.js')
 
 const settings = JSON.parse(fs.readFileSync('settings/foot_booker_settings.json'));
 
-const timeout = 20000;
+const timeout = 300000;
 
 /**
  * Convert to UTC date and time string is ISO format
@@ -115,11 +115,38 @@ function tryToBookInOrder(callback) {
     });
 }
 
+function keepTryingToBook(callback) {
+    let bookedGuid;
+    async.whilst(() => {
+        return !bookedGuid;
+    }, (callback) => {
+        setTimeout(() => {
+            return tryToBookInOrder((err, guid) => {
+                if (err) {
+                    // Ignore and retry
+                    console.error(err);
+                    return callback();
+                }
+    
+                bookedGuid = guid;
+                return callback();
+            });
+        }, 2000);
+    }, (err) => {
+        if (err) {
+            // Should never happen
+            return callback(err);
+        }
+
+        return callback(null, bookedGuid);
+    });
+}
+
 function perform() {
     async.waterfall([
         connection.getInitialCookies,
         connection.login,
-        tryToBookInOrder,
+        keepTryingToBook,
         connection.queryBookInformation
     ], (err, result) => {
         if (err) {
