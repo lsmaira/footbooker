@@ -1,6 +1,5 @@
 const https = require('https');
 const fs = require('fs');
-const async = require('async');
 
 'use-strict';
 
