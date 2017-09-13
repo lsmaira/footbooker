@@ -2,10 +2,11 @@
 Script to book football
 
 ## To get started:
-`npm install`
+`npm run setup`
 
 ## To test:
 `npm test`
 
 ## To use:
-First modify settings files and then: `npm start`
+1) Modify the [settings JSON](settings/foot_booker_settings.json) to include your custom settings
+2) Run `npm start`
