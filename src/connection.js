@@ -174,7 +174,7 @@ function getFootballId(callback) {
 /**
  * Obtain a list of available bookings for a given date
  * 
- * @param {*} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
+ * @param {string} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
  * 
  * Return an array of available sessions in format [{guid: 'string guid', startTime: 'start date and time in ISO'}].
  */
@@ -225,8 +225,8 @@ function listAvailableBookings(dateString, callback) {
 /**
  * Send the request for a given date and slot
  * 
- * @param {*} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
- * @param {*} sessionGuid string obtained in listAvailableBookings.
+ * @param {string} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
+ * @param {string} sessionGuid string obtained in listAvailableBookings.
  * 
  * Return the guid of the booking.
  */
@@ -266,7 +266,7 @@ function sendBookRequest(dateString, sessionGuid, callback) {
 /**
  * Query book information
  * 
- * @param {*} guid guid of the booking.
+ * @param {string} guid guid of the booking.
  * 
  * Return book information in format:
  * {

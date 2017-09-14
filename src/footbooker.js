@@ -14,7 +14,7 @@ const timeout = 300000;
  * 
  * <p>Times to book must be in UTC, even though the shown values are in local time.
  * 
- * @param {*} localDateAndTime string or other format of date and time
+ * @param {string} localDateAndTime string or other format of date and time
  * 
  * Return the converted string.
  */
@@ -28,7 +28,7 @@ function localToUTC(localDateAndTime) {
  * 
  * <p>Useful for quering availability for a given date and time.
  * 
- * @param {*} localDateAndTime string or other format of date and time
+ * @param {string} localDateAndTime string or other format of date and time
  * 
  * Return the converted string.
  */
@@ -47,7 +47,7 @@ function dateAndTimeToDate(localDateAndTime) {
  * 
  * <p>If book is not available, an error will be thrown.
  * 
- * @param {*} localDateAndTime local date and time string in ISO format
+ * @param {string} localDateAndTime local date and time string in ISO format
  */
 function tryToBook(localDateAndTime, callback) {
     let dateString = dateAndTimeToDate(localDateAndTime);
@@ -115,6 +115,11 @@ function tryToBookInOrder(callback) {
     });
 }
 
+/**
+ * Keep trying to book until success
+ * 
+ * <p>Try again each two seconds.
+ */
 function keepTryingToBook(callback) {
     let bookedGuid;
     async.whilst(() => {
