@@ -7,7 +7,8 @@ const connection = require('./connection.js')
 
 const settings = JSON.parse(fs.readFileSync('settings/foot_booker_settings.json'));
 
-const timeout = 300000;
+const timeout = 180000;
+const retryTimeout = 3000;
 
 /**
  * Convert to UTC date and time string is ISO format
@@ -136,7 +137,7 @@ function keepTryingToBook(callback) {
                 bookedGuid = guid;
                 return callback();
             });
-        }, 2000);
+        }, retryTimeout);
     }, (err) => {
         if (err) {
             // Should never happen
