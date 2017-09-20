@@ -25,7 +25,8 @@
   "homepage": "https://github.com/lsmaira/footbooker#readme",
   "dependencies": {
     "async": "^2.5.0",
-    "https": "^1.0.0"
+    "https": "^1.0.0",
+    "simple-node-logger": "^0.93.28"
   },
   "devDependencies": {
     "mocha": "^3.5.3"

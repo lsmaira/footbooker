@@ -1,7 +1,8 @@
 const async = require('async');
 const fs = require('fs');
+const log = require('simple-node-logger').createSimpleLogger('footbooker.log');
 
-const connection = require('./connection.js')
+const connection = require('./connection.js');
 
 'use-strict';
 
@@ -91,19 +92,23 @@ function tryToBookInOrder(callback) {
             // Already booked
             return callback();
         }
+        log.log('info', 'Trying to book at ' + localDateAndTime);
 
         return tryToBook(localDateAndTime, (err, guid) => {
             if (err) {
                 // If not succeeded, try next
+                log.log('info', 'Booking for ' + localDateAndTime + ' failed: ' + err);
                 return callback();
             }
 
+            log.log('info', 'Booking for ' + localDateAndTime + ' succeeded: ' + guid);
             bookedGuid = guid;
             return callback();
         });
     }, (err) => {
         if (err) {
             // Should never happen here since errors in partial functions are ignored
+            log.log('error', err);
             return callback(err);
         }
 
@@ -130,7 +135,7 @@ function keepTryingToBook(callback) {
             return tryToBookInOrder((err, guid) => {
                 if (err) {
                     // Ignore and retry
-                    console.error(err);
+                    log.log('warn', err);
                     return callback();
                 }
     
@@ -141,6 +146,7 @@ function keepTryingToBook(callback) {
     }, (err) => {
         if (err) {
             // Should never happen
+            log.log('error', err);
             return callback(err);
         }
 
@@ -156,15 +162,15 @@ function perform() {
         connection.queryBookInformation
     ], (err, result) => {
         if (err) {
-            console.error(err);
+            log.error('error', err);
         } else {
-            console.log(result);
+            log.log('info', 'Result: ' + result);
         }
     });
 }
 
 let timer = setTimeout(() => {
-    console.error('Timed out');
+    log.log('error', 'Timed out');
 }, timeout);
 
 perform();
