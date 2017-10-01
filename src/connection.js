@@ -371,6 +371,40 @@ function listBookedSessions(callback) {
     );
 }
 
+/**
+ * Cancel a given booking
+ * 
+ * @param {string} guid guid of the booking.
+ * @param {string} reason reason why booking is being canceled.
+ */
+function cancelBooking(guid, reason, callback) {
+    return sendRequest(
+        '/Services/Commercial/api/muga/cancelBooking.json',
+        'POST',
+        JSON.stringify({
+            Guid: guid,
+            reason: reason
+        }),
+        (err, body) => {
+            if (err) {
+                return callback(err);
+            }
+
+            let data = JSON.parse(body);
+
+            // Expected error message if invalid guid:
+            // {Code: 500, Message: 'Unknown Error Occurred'}
+            if (data.Code !== 200) {
+                return callback(new Error('Cancel booking failed: ' + JSON.stringify(data)));
+            }
+
+            // Expected success message:
+            // {Code: 200, Message: 'Booking Cancelled'}
+            return callback();
+        }
+    );
+}
+
 module.exports = {
     getInitialCookies: getInitialCookies,
     login: login,
@@ -378,5 +412,6 @@ module.exports = {
     listAvailableBookings: listAvailableBookings,
     sendBookRequest: sendBookRequest,
     queryBookInformation: queryBookInformation,
-    listBookedSessions: listBookedSessions
+    listBookedSessions: listBookedSessions,
+    cancelBooking: cancelBooking
 }
