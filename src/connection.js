@@ -138,7 +138,7 @@ function getFootballId(callback) {
                 let data = JSON.parse(body);
 
                 if (data.Code !== 200) {
-                    return callback(new Error('Get football id failed: ' + data));
+                    return callback(new Error('Get football id failed: ' + JSON.stringify(data)));
                 }
                 
                 // Expected response:
@@ -198,7 +198,7 @@ function listAvailableBookings(dateString, callback) {
             // Expected error message if string is not a date ISO or sport id not found:
             // {Code: 500, Message: 'The parameters specified are not valid'}
             if (data.Code !== 200) {
-                return callback(new Error('List available bookings failed: ' + data));
+                return callback(new Error('List available bookings failed: ' + JSON.stringify(data)));
             }
 
             // Expected success message:
@@ -253,7 +253,7 @@ function sendBookRequest(dateString, sessionGuid, callback) {
             // Expected error message if date is too far:
             // {Code: 500, Message: 'Unknown Error Occurred'}
             if (data.Code !== 200) {
-                return callback(new Error('Send book request failed: ' + data));
+                return callback(new Error('Send book request failed: ' + JSON.stringify(data)));
             }
 
             // Expected success message:
@@ -293,7 +293,7 @@ function queryBookInformation(guid, callback) {
             // Expected error message if invalid guid:
             // {Code: 500, Message: 'The parameters specified are not valid'}
             if (data.Code !== 200) {
-                return callback(new Error('Query book information failed: ' + data));
+                return callback(new Error('Query book information failed: ' + JSON.stringify(data)));
             }
 
             // Expected success message:
@@ -313,11 +313,70 @@ function queryBookInformation(guid, callback) {
     );
 }
 
+/**
+ * Obtain a list of all booked sessions
+ * 
+ * Return an array of all booked sessions in format:
+ * [{
+ *      Guid: 'e852a824-d429-4748-ac7d-be29f48470f8',
+ *      StartDateTime: '2017-09-18T07:00:00.0000000Z',
+ *      EndDateTime: '2017-09-18T07:45:00.0000000Z',
+ *      ActivityName: 'Football',
+ *      Description: 'Your Name',
+ *      PersonGuid: 'b44e80a6-3bca-4717-b6f0-ddf077a947b8'
+ * }]
+ */
+function listBookedSessions(callback) {
+    return sendRequest(
+        '/Services/Commercial/api/muga/list.json',
+        'POST',
+        JSON.stringify({
+            BookingDate: null
+        }),
+        (err, body) => {
+            if (err) {
+                return callback(err);
+            }
+
+            let data = JSON.parse(body);
+            
+            if (data.Code !== 200) {
+                return callback(new Error('List booked sessions failed: ' + JSON.stringify(data)));
+            }
+
+            // Expected success message:
+            // {
+            //     Code: 200,
+            //     Data: [
+            //         {
+            //             Guid: 'e852a824-d429-4748-ac7d-be29f48470f8',
+            //             StartDateTime: '2017-09-18T07:00:00.0000000Z',
+            //             EndDateTime: '2017-09-18T07:45:00.0000000Z',
+            //             ActivityName: 'Football',
+            //             Description: 'Your Name',
+            //             PersonGuid: 'b44e80a6-3bca-4717-b6f0-ddf077a947b8'
+            //         },
+            //         {
+            //             Guid: 'e852a824-d429-4748-ac7d-be29f48470f8',
+            //             StartDateTime: '2017-09-19T07:00:00.0000000Z',
+            //             EndDateTime: '2017-09-19T07:45:00.0000000Z',
+            //             ActivityName: 'Football',
+            //             Description: 'Your Name',
+            //             PersonGuid: 'b44e80a6-3bca-4717-b6f0-ddf077a947b8'
+            //         }
+            //     ]
+            // }
+            return callback(null, data.Data);
+        }
+    );
+}
+
 module.exports = {
     getInitialCookies: getInitialCookies,
     login: login,
     getFootballId: getFootballId,
     listAvailableBookings: listAvailableBookings,
     sendBookRequest: sendBookRequest,
-    queryBookInformation: queryBookInformation
+    queryBookInformation: queryBookInformation,
+    listBookedSessions: listBookedSessions
 }
