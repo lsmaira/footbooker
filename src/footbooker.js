@@ -84,7 +84,7 @@ function tryToBook(localDateAndTime, callback) {
  * Return the guid if succeeded.
  */
 function tryToBookInOrder(callback) {
-    let books = settings.bookingPreference;
+    let books = settings.dateAndTimeOrder.bookingPreference;
 
     let bookedGuid;
     return async.eachSeries(books, (localDateAndTime, callback) => {

@@ -4,7 +4,7 @@
   "description": "Football booker script",
   "main": "src/footbooker.js",
   "scripts": {
-    "setup": "scripts/setup.sh",
+    "setup": "npm install; node src/settings-generator.js",
     "start": "node src/footbooker.js",
     "test": "mocha"
   },
@@ -26,6 +26,7 @@
   "dependencies": {
     "async": "^2.5.0",
     "https": "^1.0.0",
+    "merge-json": "0.1.0-b.3",
     "simple-node-logger": "^0.93.28"
   },
   "devDependencies": {
