@@ -43,6 +43,36 @@ function dateAndTimeToDate(localDateAndTime) {
 }
 
 /**
+ * Returns the bookings that are more prioritized than the given one
+ * 
+ * <p>A subarray with the bookings that come before the booked one is created.
+ * This is used for retrying only the more prioritized bookings once one was
+ * already successful, in case the others failed because it was not midnight yet.
+ * </p>
+ * 
+ * @param {string} bookedUTCDateAndTime string of the booked session in UTC.
+ * @param {array} bookingPreference array of strings of the booking preference.
+ * 
+ * Return a new array.
+ */
+function getMorePrioritized(bookedUTCDateAndTime, bookingPreference) {
+    let found = false;
+    let morePrioritized = [];
+    bookingPreference.forEach((book) => {
+        if (!found) {
+            // The array of booking preference is in local time and the one obtained as result from the
+            // booked guid is in UTC
+            if (new Date(localToUTC(book)).toISOString() === new Date(bookedUTCDateAndTime).toISOString()) {
+                found = true;
+            } else {
+                morePrioritized.push(book);
+            }
+        }
+    });
+    return morePrioritized;
+}
+
+/**
  * Try to book for a specific date and time
  * 
  * <p>It is required to be loged in.
@@ -81,13 +111,13 @@ function tryToBook(localDateAndTime, callback) {
  * 
  * <p>It is required to be loged in.
  * 
+ * @param {array} bookingPreference array of strings of the date and time to book, in order of preference. 
+ * 
  * Return the guid if succeeded.
  */
-function tryToBookInOrder(callback) {
-    let books = settings.dateAndTimeOrder.bookingPreference;
-
+function tryToBookInOrder(bookingPreference, callback) {
     let bookedGuid;
-    return async.eachSeries(books, (localDateAndTime, callback) => {
+    return async.eachSeries(bookingPreference, (localDateAndTime, callback) => {
         if (bookedGuid) {
             // Already booked
             return callback();
@@ -125,14 +155,18 @@ function tryToBookInOrder(callback) {
  * Keep trying to book until success
  * 
  * <p>Try again each two seconds.
+ * 
+ * @param {array} bookingPreference array with strings of date and time in order of preference.
+ * 
+ * Return the guid of the booked session.
  */
-function keepTryingToBook(callback) {
+function keepTryingToBook(bookingPreference, callback) {
     let bookedGuid;
     async.whilst(() => {
         return !bookedGuid;
     }, (callback) => {
         setTimeout(() => {
-            return tryToBookInOrder((err, guid) => {
+            return tryToBookInOrder(bookingPreference, (err, guid) => {
                 if (err) {
                     // Ignore and retry
                     log.log('warn', err);
@@ -154,11 +188,62 @@ function keepTryingToBook(callback) {
     });
 }
 
+/**
+ * Keep trying to book until succeeded and then retries to book the most prioritized
+ * 
+ * <p>It also cancels the previous booking.
+ * 
+ * Return the guid of the succeeded one.
+ */
+function keepTryingToBookAndRebook(callback) {
+    let bookingPreference = settings.dateAndTimeOrder.bookingPreference;
+    return keepTryingToBook(bookingPreference, (err, guid) => {
+        if (err) {
+            return callback(err);
+        }
+
+        return connection.queryBookInformation(guid, (err, bookingInformation) => {
+            if (err) {
+                // Log the error and return the original booking
+                log.log('warn', err);
+                return callback(null, guid);
+            }
+
+            let retryBookingPreference = getMorePrioritized(bookingInformation.StartDateTime, bookingPreference);
+
+            if (retryBookingPreference.length === 0) {
+                // The most prioritized was booked
+                return callback(null, guid);
+            }
+
+            log.log('info', 'Trying to rebook more prioritized: ' + JSON.stringify(retryBookingPreference));
+            return tryToBookInOrder(retryBookingPreference, (err, retryGuid) => {
+                if (err) {
+                    // Log the error and return the original booking
+                    log.log('warn', err);
+                    return callback(null, guid);
+                }
+
+                // Cancel the previous one
+                return connection.cancelBooking(guid, settings.reasonToCancel, (err) => {
+                    if (err) {
+                        // Log the error and return the retry booking
+                        log.log('warn', err);
+                        return callback(null, retryGuid);
+                    }
+
+                    return callback(null, retryGuid);
+                });
+            });
+        });
+    });
+}
+
 function perform() {
     async.waterfall([
         connection.getInitialCookies,
         connection.login,
-        keepTryingToBook,
+        keepTryingToBookAndRebook,
         connection.queryBookInformation
     ], (err, result) => {
         if (err) {

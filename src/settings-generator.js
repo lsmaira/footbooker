@@ -9,6 +9,7 @@ const template = {
         password: 'password'
     },
     hostname: 'the.site.co.uk',
+    reasonToCancel: 'Any reason',
     strategy: 'oneOfTheOptionsBelow',
     dateAndTimeOrder: {
         bookingPreference: [
