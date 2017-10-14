@@ -240,9 +240,12 @@ function keepTryingToBookAndRebook(callback) {
 }
 
 function perform() {
+    connection.setHostname(settings.hostname);
     async.waterfall([
         connection.getInitialCookies,
-        connection.login,
+        (callback) => {
+            return connection.login(settings.credentials.login, settings.credentials.password, callback);
+        },
         keepTryingToBookAndRebook,
         connection.queryBookInformation
     ], (err, result) => {

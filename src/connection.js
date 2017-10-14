@@ -1,13 +1,11 @@
 const https = require('https');
-const fs = require('fs');
 
 'use-strict';
 
-const settings = JSON.parse(fs.readFileSync('settings/foot_booker_settings.json'));
-
 const footballId = '50ba1b7a-67f4-4c8d-a575-7dc8b5a43a30';
 
-let cookies = {}
+let cookies = {};
+let hostname;
 
 /**
  * Set the cookies for a given response if there are any
@@ -35,13 +33,24 @@ function getCookies() {
 }
 
 /**
+ * Set the hostname to be used in all connection operations
+ * 
+ * <p>When in production, it should be the real site, when testing, a mock host.
+ * 
+ * @param {string} host the hostname to connect to.
+ */
+function setHostname(host) {
+    hostname = host;
+}
+
+/**
  * Send a request to the given path with the given payload
  * 
  * Return the response body and sets new cookies.
  */
 function sendRequest(path, method, payload, callback) {
     let req = https.request({
-        hostname: settings.hostname,
+        hostname: hostname,
         path: path,
         method: method,
         headers: {
@@ -89,14 +98,19 @@ function getInitialCookies(callback) {
  * Log in and set the cookies
  *
  * <p>'.viciniteeFoms' is set.
+ * 
+ * <p> Initial cookies have already to be set.
+ * 
+ * @param {string} username the username used to login, usually the e-mail address.
+ * @param {string} password the password.
  */
-function login(callback) {
+function login(username, password, callback) {
     return sendRequest(
         '/Services/Commercial/api/security/validatelogin.json',
         'POST',
         JSON.stringify({
-            Email: settings.credentials.login,
-            Password: settings.credentials.password,
+            Email: username,
+            Password: password,
             PersistCookie: true
         }),
         (err, body) => {
@@ -123,6 +137,8 @@ function login(callback) {
  * Get sport id
  *
  * <p>Id should be immutable, no need to get it every time.
+ * 
+ * <p>All cookies have already to be set.
  * 
  * Return the id.
  */
@@ -173,6 +189,8 @@ function getFootballId(callback) {
 
 /**
  * Obtain a list of available bookings for a given date
+ * 
+ * <p>All cookies have already to be set.
  * 
  * @param {string} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
  * 
@@ -225,6 +243,8 @@ function listAvailableBookings(dateString, callback) {
 /**
  * Send the request for a given date and slot
  * 
+ * <p>All cookies have already to be set.
+ * 
  * @param {string} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
  * @param {string} sessionGuid string obtained in listAvailableBookings.
  * 
@@ -265,6 +285,8 @@ function sendBookRequest(dateString, sessionGuid, callback) {
 
 /**
  * Query book information
+ * 
+ * <p>All cookies have already to be set.
  * 
  * @param {string} guid guid of the booking.
  * 
@@ -315,6 +337,8 @@ function queryBookInformation(guid, callback) {
 
 /**
  * Obtain a list of all booked sessions
+ * 
+ * <p>All cookies have already to be set.
  * 
  * Return an array of all booked sessions in format:
  * [{
@@ -374,6 +398,8 @@ function listBookedSessions(callback) {
 /**
  * Cancel a given booking
  * 
+ * <p>All cookies have already to be set.
+ * 
  * @param {string} guid guid of the booking.
  * @param {string} reason reason why booking is being canceled.
  */
@@ -406,6 +432,7 @@ function cancelBooking(guid, reason, callback) {
 }
 
 module.exports = {
+    setHostname: setHostname,
     getInitialCookies: getInitialCookies,
     login: login,
     getFootballId: getFootballId,
