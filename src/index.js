@@ -6,7 +6,8 @@ const footbooker = require('./footbooker.js');
 
 'use-strict';
 
-const existingSettings = JSON.parse(fs.readFileSync('settings/foot_booker_settings.json'));
+const settingsFilePath = process.argv[2] ? process.argv[2] : 'settings/foot_booker_settings.json';
+const existingSettings = JSON.parse(fs.readFileSync(settingsFilePath));
 
 const settingsAdditions = {
     timeout: 180000,
