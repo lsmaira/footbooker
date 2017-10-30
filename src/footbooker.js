@@ -1,138 +1,91 @@
 const async = require('async');
-const fs = require('fs');
 const log = require('simple-node-logger').createSimpleLogger('footbooker.log');
 
 const connection = require('./connection.js');
+const utils = require('./utils.js');
 
 'use-strict';
 
-const settings = JSON.parse(fs.readFileSync('settings/foot_booker_settings.json'));
-
-const timeout = 180000;
-const retryTimeout = 3000;
-
 /**
- * Convert to UTC date and time string is ISO format
- * 
- * <p>Times to book must be in UTC, even though the shown values are in local time.
- * 
- * @param {string} localDateAndTime string or other format of date and time.
- * 
- * Return the converted string.
- */
-function localToUTC(localDateAndTime) {
-    let date = new Date(localDateAndTime);
-    return new Date(date.getTime() + (date.getTimezoneOffset() * 60000)).toISOString();
-}
-
-/**
- * Convert to date in ISO format
- * 
- * <p>Useful for quering availability for a given date and time.
- * 
- * @param {string} localDateAndTime string or other format of date and time.
- * 
- * Return the converted string.
- */
-function dateAndTimeToDate(localDateAndTime) {
-    let date = new Date(localDateAndTime);
-    // Generates a date based in UTC, but when reading it is local
-    date = new Date(date.toDateString());
-    // Transforms in local
-    return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString();
-}
-
-/**
- * Returns the bookings that are more prioritized than the given one
- * 
- * <p>A subarray with the bookings that come before the booked one is created.
- * This is used for retrying only the more prioritized bookings once one was
- * already successful, in case the others failed because it was not midnight yet.
- * </p>
- * 
- * @param {string} bookedUTCDateAndTime string of the booked session in UTC.
- * @param {array} bookingPreference array of strings of the booking preference.
- * 
- * Return a new array.
- */
-function getMorePrioritized(bookedUTCDateAndTime, bookingPreference) {
-    let found = false;
-    let morePrioritized = [];
-    bookingPreference.forEach((book) => {
-        if (!found) {
-            // The array of booking preference is in local time and the one obtained as result from the
-            // booked guid is in UTC
-            if (new Date(localToUTC(book)).toISOString() === new Date(bookedUTCDateAndTime).toISOString()) {
-                found = true;
-            } else {
-                morePrioritized.push(book);
-            }
-        }
-    });
-    return morePrioritized;
-}
-
-/**
- * Try to book for a specific date and time
+ * Try to book a certain date and time given a list of availability
  * 
  * <p>It is required to be loged in.
  * 
- * <p>If book is not available, an error will be thrown.
+ * @param {string} dateAndTime the date and time string. If contains no time zone, it will be considered local.
+ * @param {Object} availableSessions available sessions for the given date, in format:
+ * [{guid: 'string guid', startTime: 'start date and time in ISO'}].
  * 
- * @param {string} localDateAndTime local date and time string in ISO format.
+ * Return the guid, as a string, if suceeded.
  */
-function tryToBook(localDateAndTime, callback) {
-    let dateString = dateAndTimeToDate(localDateAndTime);
-    let dateAndTimeUTC = localToUTC(localDateAndTime);
-    connection.listAvailableBookings(dateString, (err, availableSessions) => {
-        if (err) {
-            return callback(err);
+function tryToBookGivenAvailability(dateAndTime, availableSessions, callback) {
+    let isoDateAndTime = utils.localOrISOToISO(dateAndTime);
+    let isoDateString = utils.dateAndTimeOrDateToDate(isoDateAndTime);
+    let guid;
+    availableSessions.forEach((availableSession) => {
+        if (new Date(availableSession.startTime).toISOString() === new Date(isoDateAndTime).toISOString()) {
+            guid = availableSession.guid;
         }
-
-        let guid;
-        availableSessions.forEach((availableSession) => {
-            if (new Date(availableSession.startTime).toISOString() === new Date(dateAndTimeUTC).toISOString()) {
-                guid = availableSession.guid;
-            }
-        });
-        
-        if (guid) {
-            // Session is available. Send book request.
-            return connection.sendBookRequest(dateString, guid, callback);
-        }
-
-        // Session is not available
-        return callback(new Error('Required session ' + localDateAndTime + 'is not available'));
     });
+    
+    if (guid) {
+        // Session is available. Send book request.
+        return connection.sendBookRequest(isoDateString, guid, callback);
+    }
+
+    // Session is not available
+    return callback(new Error('Required session ' + isoDateAndTime + 'is not available'));
 }
 
 /**
- * Try to book in order for the dates and time in config until sucess or tried all
+ * Obtain the list of available sessions and try to book
  * 
  * <p>It is required to be loged in.
  * 
- * @param {array} bookingPreference array of strings of the date and time to book, in order of preference. 
+ * @param {string} dateAndTime the date and time string. If contains no time zone, it will be considered local.
  * 
- * Return the guid if succeeded.
+ * Return the guid, as a string, if suceeded.
  */
-function tryToBookInOrder(bookingPreference, callback) {
+function checkAvailabilityAndTryToBook(dateAndTime, callback) {
+    let isoDateString = utils.dateAndTimeOrDateToDate(dateAndTime);
+    return async.waterfall([
+        (callback) => {
+            return connection.listAvailableBookings(isoDateString, callback);
+        },
+        (availableSessions, callback) => {
+            return tryToBookGivenAvailability(dateAndTime, availableSessions, callback);
+        }
+    ], callback);
+}
+
+/**
+ * Try to book in order for the give dates and time until sucess or tried all
+ * 
+ * <p>It is required to be loged in.
+ * 
+ * <p>Should be used in strategy 'dateAndTimeOrder'.
+ * 
+ * @param {array} dateAndTimeBookingPreference array of strings of the date and time to book, in order of preference.
+ * If contains no time zone, it will be considered local.
+ * 
+ * Return the guid, as a string, if suceeded.
+ */
+function tryToBookInOrder(dateAndTimeBookingPreference, callback) {
     let bookedGuid;
-    return async.eachSeries(bookingPreference, (localDateAndTime, callback) => {
+    return async.eachSeries(dateAndTimeBookingPreference, (dateAndTime, callback) => {
         if (bookedGuid) {
             // Already booked
             return callback();
         }
-        log.log('info', 'Trying to book at ' + localDateAndTime);
 
-        return tryToBook(localDateAndTime, (err, guid) => {
+        return checkAvailabilityAndTryToBook(dateAndTime, (err, guid) => {
             if (err) {
                 // If not succeeded, try next
-                log.log('info', 'Booking for ' + localDateAndTime + ' failed: ' + err);
+                log.log('info', 'Booking for ' + dateAndTime + ' failed: ' + err);
                 return callback();
             }
 
-            log.log('info', 'Booking for ' + localDateAndTime + ' succeeded: ' + guid);
             bookedGuid = guid;
+            log.log('info', 'Booking for ' + dateAndTime + ' succeeded: ' + guid);
             return callback();
         });
     }, (err) => {
@@ -152,21 +105,102 @@ function tryToBookInOrder(bookingPreference, callback) {
 }
 
 /**
+ * Try to book in order for the given date and in the given time order until sucess or tried all
+ * 
+ * <p>It is required to be loged in.
+ * 
+ * @param {string} dateString date string. If no time zone is provided, it is considered as local.
+ * @param {array} timeBookingPreference array of strings with time of booking. If no time zone, it is considered as local.
+ * e.g. ["20:00", "21:00", "18:00Z"].
+ * 
+ * Return the guid, as a string, if suceeded.
+ */
+function tryToBookInOrderSameDate(dateString, timeBookingPreference, callback) {
+    let isoDateString = utils.dateAndTimeOrDateToDate(dateString);
+    return async.waterfall([
+        (callback) => {
+            return connection.listAvailableBookings(isoDateString, callback);
+        },
+        (availableSessions, callback) => {
+            let bookedGuid;
+            return async.eachSeries(timeBookingPreference, (time, callback) => {
+                if (bookedGuid) {
+                    // Already booked
+                    return callback();
+                }
+
+                let isoDateAndTime = utils.datePlusTimeToDateAndTime(isoDateString, time);
+                log.log('info', 'Trying to book at ' + isoDateAndTime);
+                return tryToBookGivenAvailability(isoDateAndTime, availableSessions, (err, guid) => {
+                    if (err) {
+                        // If not succeeded, try next
+                        log.log('info', 'Booking for ' + isoDateAndTime + ' failed: ' + err);
+                        return callback();
+                    }
+
+                    bookedGuid = guid;
+                    log.log('info', 'Booking for ' + isoDateAndTime + ' succeeded: ' + guid);
+                    return callback();
+                });
+            }, (err) => {
+                if (err) {
+                    // Should never happen here since errors in partial functions are ignored
+                    log.log('error', err);
+                    return callback(err);
+                }
+        
+                if (!bookedGuid) {
+                    // Passed by all tries but none was successful
+                    return callback(new Error('None of the bookings was successful'));
+                }
+        
+                return callback(null, bookedGuid);
+            });
+        }
+    ], callback);
+}
+
+/**
+ * Try to book in order for the next occurence of the weekday and in the given time order until sucess or tried all
+ * 
+ * <p>It is required to be loged in.
+ * 
+ * <p>Weekday is obtained with the offset minimum days in the future.
+ * 
+ * <p>Should be used in strategy 'weekdayAndTimeOrder'.
+ * 
+ * @param {number|string} weekday the day of the week (0 = Sunday, 6 = Monday), either a string or number.
+ * @param {number} offset the number of days from now to be disconsidered. For instance, if today is Sunday, requesting
+ * 'Wednesday' with offset 2 will return next Wednesday, with offset 5, the one in the next week.
+ * @param {array} timeBookingPreference array of strings with time of booking. If no time zone, it is considered as local.
+ * e.g. ["20:00", "21:00", "18:00Z"].
+ * 
+ * Return the guid, as a string, if suceeded.
+ */
+function tryToBookInOrderWeekday(weekday, offset, timeBookingPreference, callback) {
+    let dateString = utils.getNextDateForWeekday(weekday, offset);
+    log.log('info', 'Trying to book for weekday ' + weekday + ' which date is ' + dateString);
+    return tryToBookInOrderSameDate(dateString, timeBookingPreference, callback);
+}
+
+/**
  * Keep trying to book until success
  * 
- * <p>Try again each two seconds.
+ * <p>It is required to be loged in.
  * 
- * @param {array} bookingPreference array with strings of date and time in order of preference.
+ * @param {function} bookingLambda lambda function used to book. It should receive only a callback and return the guid.
+ * @param {number} retryTimeout time in milliseconds between to retries.
  * 
- * Return the guid of the booked session.
+ * Return the guid, as a string, if suceeded.
  */
-function keepTryingToBook(bookingPreference, callback) {
+function keepTryingToBook(bookingLambda, retryTimeout, callback) {
+    log.log('info', 'Starting infinite loop to keep trying to book');
     let bookedGuid;
     async.whilst(() => {
         return !bookedGuid;
     }, (callback) => {
         setTimeout(() => {
-            return tryToBookInOrder(bookingPreference, (err, guid) => {
+            return bookingLambda((err, guid) => {
                 if (err) {
                     // Ignore and retry
                     log.log('warn', err);
@@ -189,64 +223,81 @@ function keepTryingToBook(bookingPreference, callback) {
 }
 
 /**
- * Keep trying to book until succeeded and then retries to book the most prioritized
+ * Try to rebook a better spot and cancels the previous one
  * 
- * <p>It also cancels the previous booking.
+ * @param {function} bookingLambda the function used to rebook, already taking into consideration the reduced
+ * list of preference.
+ * @param {string} bookedGuid the already booked guid.
+ * @param {string} reasonToCancel any reason why cancelling.
  * 
- * Return the guid of the succeeded one.
+ * Return the guid, as a string, either the new one if succeeded of the previous one otherwise.
  */
-function keepTryingToBookAndRebook(callback) {
-    let bookingPreference = settings.dateAndTimeOrder.bookingPreference;
-    return keepTryingToBook(bookingPreference, (err, guid) => {
+function tryToRebookBetterOne(bookingLambda, bookedGuid, reasonToCancel, callback) {
+    log.log('info', 'Trying to book a better spot');
+    return bookingLambda((err, guid) => {
         if (err) {
-            return callback(err);
+            // Keep the previous booking
+            log.log('info', 'Could not book a better spot, keeping the previous one');
+            return callback(null, bookedGuid);
         }
 
-        return connection.queryBookInformation(guid, (err, bookingInformation) => {
+        return connection.cancelBooking(bookedGuid, reasonToCancel, (err) => {
             if (err) {
-                // Log the error and return the original booking
-                log.log('warn', err);
+                // Just keep both bookings and return the best one
+                log.log('warn', 'Better spot booked but could not cancel previous one, please cancel manually');
                 return callback(null, guid);
             }
 
-            let retryBookingPreference = getMorePrioritized(bookingInformation.StartDateTime, bookingPreference);
-
-            if (retryBookingPreference.length === 0) {
-                // The most prioritized was booked
-                return callback(null, guid);
-            }
-
-            log.log('info', 'Trying to rebook more prioritized: ' + JSON.stringify(retryBookingPreference));
-            return tryToBookInOrder(retryBookingPreference, (err, retryGuid) => {
-                if (err) {
-                    // Log the error and return the original booking
-                    log.log('warn', err);
-                    return callback(null, guid);
-                }
-
-                // Cancel the previous one
-                return connection.cancelBooking(guid, settings.reasonToCancel, (err) => {
-                    if (err) {
-                        // Log the error and return the retry booking
-                        log.log('warn', err);
-                        return callback(null, retryGuid);
-                    }
-
-                    return callback(null, retryGuid);
-                });
-            });
+            // Booking successfully cancelled.
+            log.log('info', 'Better spot booked successfully: ' + guid);
+            return callback(null, guid);
         });
     });
 }
 
-function perform() {
+/**
+ * Perform dateAndTimeOrder strategy
+ * 
+ * @param {Object} settings object in expected structure:
+ * {
+ *      credentials: {
+ *          login: 'email@host.com',
+ *          password: 'password'
+ *      },
+ *      hostname: 'the.site.co.uk',
+ *      reasonToCancel: 'Any reason',
+ *      dateAndTimeOrder: {
+ *          bookingPreference: [
+ *              '2017-10-11T20:00:00.0000000',
+ *              '2017-10-11T19:00:00.0000000',
+ *              '2017-10-11T21:00:00.0000000',
+ *              '2017-10-11T18:00:00.0000000'
+ *          ]
+ *      },
+ *      retryTimeout: 3
+ * }
+ */
+function dateAndTimeOrder(settings) {
+    log.log('info', 'Starting strategy dateAndTimeOrder');
     connection.setHostname(settings.hostname);
-    async.waterfall([
+    return async.waterfall([
         connection.getInitialCookies,
         (callback) => {
             return connection.login(settings.credentials.login, settings.credentials.password, callback);
         },
-        keepTryingToBookAndRebook,
+        (callback) => {
+            return keepTryingToBook((callback) => {
+                return tryToBookInOrder(settings.dateAndTimeOrder.bookingPreference, callback);
+            }, settings.retryTimeout, callback);
+        },
+        connection.queryBookInformation,
+        (bookingInformation, callback) => {
+            return tryToRebookBetterOne((callback) => {
+                let newDateAndTimeOrder = utils.getMorePrioritizedDateAndTime(bookingInformation.StartDateTime,
+                    settings.dateAndTimeOrder.bookingPreference);
+                return tryToBookInOrder(newDateAndTimeOrder, callback);
+            }, bookingInformation.Guid, settings.reasonToCancel, callback);
+        },
         connection.queryBookInformation
     ], (err, result) => {
         if (err) {
@@ -257,9 +308,68 @@ function perform() {
     });
 }
 
-let timer = setTimeout(() => {
-    log.log('error', 'Timed out');
-}, timeout);
+/**
+ * Perform dateAndTimeOrder strategy
+ * 
+ * @param {Object} settings object in expected structure:
+ * {
+ *      credentials: {
+ *          login: 'email@host.com',
+ *          password: 'password'
+ *      },
+ *      hostname: 'the.site.co.uk',
+ *      reasonToCancel: 'Any reason',
+ *      weekdayAndTimeOrder: {
+ *          weekday: 'Wednesday',
+ *          offset: 3,
+ *          timePreference: [
+ *              '20:00',
+ *              '19:00',
+ *              '21:00',
+ *              '18:00'
+ *          ]
+ *      },
+ *      retryTimeout: 3
+ * }
+ */
+function weekdayAndTimeOrder(settings) {
+    log.log('info', 'Starting strategy weekdayAndTimeOrder');
+    connection.setHostname(settings.hostname);
+    return async.waterfall([
+        connection.getInitialCookies,
+        (callback) => {
+            return connection.login(settings.credentials.login, settings.credentials.password, callback);
+        },
+        (callback) => {
+            return keepTryingToBook((callback) => {
+                return tryToBookInOrderWeekday(settings.weekdayAndTimeOrder.weekday,
+                    settings.weekdayAndTimeOrder.offset,
+                    settings.weekdayAndTimeOrder.timePreference,
+                    callback);
+            }, settings.retryTimeout, callback);
+        },
+        connection.queryBookInformation,
+        (bookingInformation, callback) => {
+            return tryToRebookBetterOne((callback) => {
+                let newTimeOrder = utils.getMorePrioritizedTime(bookingInformation.StartDateTime,
+                    settings.weekdayAndTimeOrder.timePreference);
+                return tryToBookInOrderWeekday(settings.weekdayAndTimeOrder.weekday,
+                    settings.weekdayAndTimeOrder.offset,
+                    newTimeOrder,
+                    callback);
+            }, bookingInformation.Guid, settings.reasonToCancel, callback);
+        },
+        connection.queryBookInformation
+    ], (err, result) => {
+        if (err) {
+            log.error('error', err);
+        } else {
+            log.log('info', 'Result: ' + JSON.stringify(result));
+        }
+    });
+}
 
-perform();
-clearTimeout(timer);
+module.exports = {
+    dateAndTimeOrder: dateAndTimeOrder,
+    weekdayAndTimeOrder: weekdayAndTimeOrder
+}

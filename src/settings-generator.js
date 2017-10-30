@@ -13,10 +13,20 @@ const template = {
     strategy: 'oneOfTheOptionsBelow',
     dateAndTimeOrder: {
         bookingPreference: [
-            '2017-10-11T20:00:00.0000000Z',
-            '2017-10-11T23:00:00.0000000Z',
-            '2017-10-11T19:00:00.0000000Z',
+            '2017-10-11T20:00:00.0000000',
+            '2017-10-11T19:00:00.0000000',
+            '2017-10-11T21:00:00.0000000',
             '2017-10-11T18:00:00.0000000Z'
+        ]
+    },
+    weekdayAndTimeOrder: {
+        weekday: 'Wednesday',
+        offset: 3,
+        timePreference: [
+            '20:00',
+            '19:00',
+            '21:00',
+            '18:00'
         ]
     }
 };

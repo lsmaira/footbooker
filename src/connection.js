@@ -9,6 +9,8 @@ let hostname;
 
 /**
  * Set the cookies for a given response if there are any
+ * 
+ * @param {Object} res the response received in the https request.
  */
 function setCookies(res) {
     if (res.headers['set-cookie']) {
@@ -21,6 +23,8 @@ function setCookies(res) {
 
 /**
  * Get all previously set cookies in string format
+ * 
+ * Return all the previously set cookies in this connection.
  */
 function getCookies() {
   let result = "";
@@ -46,7 +50,13 @@ function setHostname(host) {
 /**
  * Send a request to the given path with the given payload
  * 
- * Return the response body and sets new cookies.
+ * <p>Existing cookies are passed to the request and new cookies are set.
+ * 
+ * @param {string} path the path to send the request.
+ * @param {string} method the method used (e.g. 'GET', 'POST').
+ * @param {string} payload the payload to be sent in string format (use JSON.stringify).
+ * 
+ * Return the response body, in string format, and sets new cookies.
  */
 function sendRequest(path, method, payload, callback) {
     let req = https.request({
@@ -90,7 +100,7 @@ function sendRequest(path, method, payload, callback) {
  */
 function getInitialCookies(callback) {
     return sendRequest('/Accounts/Login.aspx', 'GET', null, (err, body) => {
-        callback(err);
+        return callback(err);
     });
 }
 
@@ -99,7 +109,7 @@ function getInitialCookies(callback) {
  *
  * <p>'.viciniteeFoms' is set.
  * 
- * <p> Initial cookies have already to be set.
+ * <p> Initial cookies have to be already set.
  * 
  * @param {string} username the username used to login, usually the e-mail address.
  * @param {string} password the password.
@@ -138,9 +148,9 @@ function login(username, password, callback) {
  *
  * <p>Id should be immutable, no need to get it every time.
  * 
- * <p>All cookies have already to be set.
+ * <p>All cookies have to be already set.
  * 
- * Return the id.
+ * Return the id as a string.
  */
 function getFootballId(callback) {
     return sendRequest(
@@ -190,9 +200,9 @@ function getFootballId(callback) {
 /**
  * Obtain a list of available bookings for a given date
  * 
- * <p>All cookies have already to be set.
+ * <p>All cookies have to be already set.
  * 
- * @param {string} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
+ * @param {string} dateString date in ISO string format. Must be like '2017-09-17T00:00:00.000Z'.
  * 
  * Return an array of available sessions in format [{guid: 'string guid', startTime: 'start date and time in ISO'}].
  */
@@ -243,12 +253,12 @@ function listAvailableBookings(dateString, callback) {
 /**
  * Send the request for a given date and slot
  * 
- * <p>All cookies have already to be set.
+ * <p>All cookies have to be already set.
  * 
- * @param {string} dateString date in ISO format. Must be like '2017-09-17T00:00:00.000Z'.
+ * @param {string} dateString date in ISO string format. Must be like '2017-09-17T00:00:00.000Z'.
  * @param {string} sessionGuid string obtained in listAvailableBookings.
  * 
- * Return the guid of the booking.
+ * Return the guid of the booking as a string.
  */
 function sendBookRequest(dateString, sessionGuid, callback) {
     return sendRequest(
@@ -286,7 +296,7 @@ function sendBookRequest(dateString, sessionGuid, callback) {
 /**
  * Query book information
  * 
- * <p>All cookies have already to be set.
+ * <p>All cookies have to be already set.
  * 
  * @param {string} guid guid of the booking.
  * 
@@ -338,7 +348,7 @@ function queryBookInformation(guid, callback) {
 /**
  * Obtain a list of all booked sessions
  * 
- * <p>All cookies have already to be set.
+ * <p>All cookies have to be already set.
  * 
  * Return an array of all booked sessions in format:
  * [{
@@ -398,7 +408,7 @@ function listBookedSessions(callback) {
 /**
  * Cancel a given booking
  * 
- * <p>All cookies have already to be set.
+ * <p>All cookies have to be already set.
  * 
  * @param {string} guid guid of the booking.
  * @param {string} reason reason why booking is being canceled.

@@ -5,7 +5,7 @@
   "main": "src/footbooker.js",
   "scripts": {
     "setup": "npm install; node src/settings-generator.js",
-    "start": "node src/footbooker.js",
+    "start": "node src/index.js",
     "test": "mocha"
   },
   "repository": {
