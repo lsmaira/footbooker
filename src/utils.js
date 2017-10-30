@@ -93,7 +93,8 @@ function getNextDateForWeekday(weekday, offset) {
         returnDate.setDate(returnDate.getDate() + (dayIndex + (7 - returnDay)) % 7);
     }
     
-    return dateAndTimeOrDateToDate(returnDate.toISOString());
+    returnDate = new Date(Date.UTC(returnDate.getFullYear(), returnDate.getMonth(), returnDate.getDate()));
+    return returnDate.toISOString();
 }
 
 /**

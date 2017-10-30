@@ -33,4 +33,3 @@ let timer = setTimeout(() => {
 perform();
 
 clearTimeout(timer);
-
