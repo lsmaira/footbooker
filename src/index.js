@@ -11,7 +11,7 @@ const existingSettings = JSON.parse(fs.readFileSync(settingsFilePath));
 
 const settingsAdditions = {
     timeout: 180000,
-    retryTimeout: 3000
+    retryTimeout: 2000
 };
 
 const settings = mergeJSON.merge(settingsAdditions, existingSettings);
