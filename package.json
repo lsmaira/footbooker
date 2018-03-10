@@ -24,10 +24,10 @@
   },
   "homepage": "https://github.com/lsmaira/footbooker#readme",
   "dependencies": {
-    "async": "^2.5.0",
+    "async": "^2.6.0",
     "https": "^1.0.0",
     "merge-json": "0.1.0-b.3",
-    "simple-node-logger": "^0.93.28"
+    "simple-node-logger": "^0.93.37"
   },
   "devDependencies": {
     "mocha": "^3.5.3"
