@@ -27,7 +27,7 @@
     "async": "^2.6.1",
     "https": "^1.0.0",
     "merge-json": "0.1.0-b.3",
-    "simple-node-logger": "^0.93.37"
+    "simple-node-logger": "^0.93.40"
   },
   "devDependencies": {
     "mocha": "^5.2.0"
