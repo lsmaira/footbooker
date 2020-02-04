@@ -27,10 +27,10 @@ function perform() {
     }
 }
 
-let timer = setTimeout(() => {
-    log.log('error', 'Timed out');
+
+setTimeout(() => {
+    log.log('error', 'Timed out before being able to make a booking');
+    return process.exit(0);
 }, settings.timeout);
 
 perform();
-
-clearTimeout(timer);
