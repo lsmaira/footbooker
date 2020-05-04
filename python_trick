@@ -1,0 +1,7 @@
+biggest = None
+lst = [3, 6, 8, 5]
+for l in lst:
+  if biggest == None:
+    biggest = l
+  elif l > biggest:
+      biggest = l
